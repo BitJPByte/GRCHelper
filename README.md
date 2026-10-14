@@ -3,12 +3,31 @@
 
 ---
 
+<br>
+
+## Table of Contents
+* [1. Executive Summary](#1-executive-summary)
+* [2. Architecture & Continuous Monitoring Workflow](#2-architecture--continuous-monitoring-workflow)
+* [3. Getting Started: Installation & Usage Guide (How-To)](#3-getting-started-installation--usage-guide-how-to)
+* [4. Audit Deliverables & Executive Outputs](#4-audit-deliverables--executive-outputs)
+* [5. Architectural Scalability: Lab vs. Production Environment](#5-architectural-scalability-lab-vs-production-environment)
+* [6. Glossary of Terms & Regulatory Acronyms](#6-glossary-of-terms--regulatory-acronyms)
+
+
+---
+
+<br>
+
 ## 1. Executive Summary
 * **The Problem:** Healthcare compliance programs frequently rely on static, point-in-time spreadsheets that quickly drift from real-world infrastructure, identity, and third-party vendor risks.
 * **The Solution:** This repository implements an automated **Continuous Assurance & Breach Triage Engine** tailored for behavioral health and Substance Use Disorder (SUD) treatment environments. Using a **Policy-as-Data** architecture aligned with **NIST SP 800-66 Rev. 2** (*Implementing the HIPAA Security Rule*), the engine ingests technical telemetry across **KnowBe4**, **Microsoft Intune (MDM)**, **Microsoft Entra ID (M365)**, and **Third-Party Vendor (TPRM) BAA Inventories**, evaluating them dynamically against **HIPAA (45 CFR Part 164)**, **42 CFR Part 2**, **HITECH**, **NIST SP 800-53 Rev. 5**, and **NIST CSF 2.0**.
 * **Audit-Ready Deliverables:** Automatically outputs a sanitized **Information Security Risk Register (POA&M)** in CSV format, visual severity/category compliance charts, a **CISO Executive Compliance Dashboard** in Markdown, and a cryptographic **SHA-256 integrity digest** guaranteeing tamper-evidence under **HIPAA 45 CFR § 164.312(c)(1)**.
 
+<p align="right"><a href="#table-of-contents">▲ Back to Top</a></p>
+
 ---
+
+<br>
 
 ## 2. Architecture & Continuous Monitoring Workflow
 
@@ -59,7 +78,11 @@ Rather than hardcoding statutory citations and control numbers inside Python eva
 * **Automated Federal Catalog Ingestion (`scripts/build_crosswalk_from_nist.py`):** Ingests official machine-readable JSON exports directly from the **NIST Cybersecurity and Privacy Reference Tool (CPRT)** (`SP 800-66 Rev. 2`) and compiles them into the runtime crosswalk schema.
 * **Multi-Framework Coverage:** Maps every finding simultaneously across **HIPAA Security/Privacy/Breach Rules**, **42 CFR Part 2**, **NIST SP 800-53 Rev. 5**, and **NIST CSF 2.0** (including `GV.SC` Supply Chain Risk Management).
 
+<p align="right"><a href="#table-of-contents">▲ Back to Top</a></p>
+
 ---
+
+<br>
 
 ## 3. Getting Started: Installation & Usage Guide (How-To)
 
@@ -139,9 +162,50 @@ Open the `output/` folder to inspect your generated compliance artifacts:
 2. **`output/live_hipaa_risk_register.csv`**: Sanitized against CSV Formula Injection (DDE) and ready for import into Excel, ServiceNow GRC, or Jira.
 3. **`output/compliance_charts.png`**: High-resolution (`300 DPI`) bar and pie charts breaking down open findings by severity and HIPAA safeguard category.
 
+<p align="right"><a href="#table-of-contents">▲ Back to Top</a></p>
+
 ---
 
-## 4. Architectural Scalability: Lab vs. Production Environment
+<br>
+
+## 4. Audit Deliverables & Executive Outputs
+
+When `continuous_compliance_auditor.py` executes, it transforms raw identity, endpoint, and vendor telemetry into three audit-ready deliverables in the `output/` directory:
+
+### A. Executive Visual Dashboard (`output/compliance_charts.png`)
+The engine generates automated data visualizations summarizing risk posture for board-level and executive review:
+
+![Executive Compliance Charts](output/compliance_charts.png)
+
+---
+
+### B. Live Information Security Risk Register (`output/live_hipaa_risk_register.csv`)
+A sanitized, DDE-hardened CSV export ready for import into enterprise GRC systems (e.g., ServiceNow GRC, Jira Align):
+
+| Rule ID | Severity | HIPAA Citation | NIST SP 800-53 | NIST CSF 2.0 | Asset / Vendor | Core Risk Finding | Remediation Guidance (POA&M) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `CHECK_C_ENDPOINT_ENCRYPTION` | **CRITICAL** | 45 CFR § 164.312(a)(2)(iv) | `SC-28, MP-4` | `PR.DS-01` | `EMP-041 (anon)` | Unencrypted endpoint accessing ePHI; voids HITECH Safe Harbor | Enforce Intune BitLocker policy & block M365 access |
+| `CHECK_E_MISSING_BAA` | **CRITICAL** | 45 CFR § 164.502(e) | `SA-9, AC-20` | `GV.SC-06` | `VEND-102` | Third-party ePHI vendor lacking signed BAA | Suspend vendor API/data access pending legal agreement |
+| `CHECK_A_PHISHING_MFA` | **HIGH** | 45 CFR § 164.308(a)(5)(ii)(B) | `AT-2, IA-2(1)` | `PR.AA-01` | `EMP-014 (anon)` | Repeat phish clicker with SUD/Part 2 access lacking strict MFA | Require remedial KnowBe4 module & apply Entra ID MFA policy |
+| `CHECK_F_VENDOR_ASSURANCE` | **HIGH** | 45 CFR § 164.308(a)(1)(ii)(B) | `SA-9, RA-3` | `GV.SC-07` | `VEND-102` | Vendor processing ePHI lacks current SOC 2 / HITRUST CSF | Request updated SOC 2 Type II attestation report |
+| `CHECK_B_OVERDUE_TRAINING` | **MEDIUM** | 45 CFR § 164.308(a)(5)(i) | `AT-2, AC-2` | `PR.AT-01` | `EMP-088 (anon)` | Annual HIPAA workforce training >14 days overdue | Escalate to manager via API; suspend EHR access after 30d |
+
+> **Tamper-Evident Verification (HIPAA § 164.312(c)(1)):**  
+> Each run generates a SHA-256 hash manifest verifying that output artifacts have not been modified post-audit:  
+> `SHA-256 Digest: ed52cbcb0ac638a7c2901c5678eb178b671ec44f0b2f568a0a86377747738f6b`
+
+---
+
+### C. CISO Executive Markdown Briefing (`output/ciso_executive_dashboard.md`)
+A standalone briefing document formatted for executive review, tracking control maturity scores, Corrective Action Plans (CAP), and POA&M milestones.
+
+<p align="right"><a href="#table-of-contents">▲ Back to Top</a></p>
+
+---
+
+<br>
+
+## 5. Architectural Scalability: Lab vs. Production Environment
 
 | Component | Lab Implementation (Zero Cost / Dev) | Production: Less Complex / Budget-Friendly | Production: Complex / Enterprise Scale |
 | :--- | :--- | :--- | :--- |
@@ -151,9 +215,13 @@ Open the `output/` folder to inspect your generated compliance artifacts:
 | **Endpoint & 42 CFR Part 2 Enforcement** | Custom Python conditional checks evaluating mock device encryption and MFA flags. | Native **Microsoft Intune** Device Compliance Policies combined with **Entra ID Conditional Access** auto-blocking. | Automated SOAR playbooks via **Microsoft Defender XDR** and **ServiceNow** triggering instant host isolation & Sev-1 tickets. |
 | **Audit Reporting & Tamper Evidence** | Python script generating CSV risk register and stamping SHA-256 digest into Markdown dashboard. | Monthly audit reports saved to locked-down OneDrive/SharePoint repository with **Version History** & **Retention Labels**. | Writing compliance artifacts directly to **Azure Blob Storage with Immutable Storage (WORM)** policies for federal auditors. |
 
+<p align="right"><a href="#table-of-contents">▲ Back to Top</a></p>
+
 ---
 
-## 5. Glossary of Terms & Regulatory Acronyms
+<br>
+
+## 6. Glossary of Terms & Regulatory Acronyms
 
 To ensure cross-functional alignment between engineering, legal, clinical operations, and executive leadership, this section defines key compliance frameworks, governance artifacts, and regulatory acronyms used throughout this engine:
 
