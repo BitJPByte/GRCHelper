@@ -3,9 +3,11 @@ continuous_compliance_auditor.py
 Core GRC automation engine mapping KnowBe4 and Intune telemetry
 to HIPAA Security Rule (45 CFR Part 164) and NIST SP 800-53 Rev. 5 controls.
 """
+Python
 
 import json
 import os
+import csv
 from pathlib import Path
 from security_utils import (
     safe_resolve_path,
