@@ -94,7 +94,7 @@ def run_audit():
         
         # Embed Visual Charts
         md_file.write("## Executive Visual Overview\n")
-        md_file.write("![Executive compliance dashboard with a bar chart and trend line showing HIPAA and NIST risk findings by severity, open count, and remediation progress. The primary subjects are the charts and summary indicators on a clean business dashboard layout. The environment is a formal compliance reporting screen with labels for status, findings, and action priorities. Text in the image includes headings and values for compliance overview, severity breakdown, and open findings. The tone is professional, alert, and action-oriented.](./compliance_charts.png)\n\n")
+        md_file.write("![Compliance Charts](./compliance_charts.png)\n\n")
 
         # Embed Executive Summary Table
         md_file.write("## Executive Findings Summary\n\n")
