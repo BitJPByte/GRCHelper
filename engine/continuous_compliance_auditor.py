@@ -1,6 +1,6 @@
 """
 continuous_compliance_auditor.py
-Core GRC automation engine mapping KnowBe4 and Intune telemetry
+Core GRC automation engine mapping KnowBe4, Intune, and TPRM/BAA telemetry 
 to HIPAA Security Rule (45 CFR Part 164) and NIST SP 800-53 Rev. 5 controls.
 """
 
@@ -21,14 +21,14 @@ def run_audit():
     output_dir = repo_root / "output"
     output_dir.mkdir(exist_ok=True)
 
-    # 1. Safely load mock telemetry data
+    findings = []
+
+    # 1. Safely load workforce telemetry data (KnowBe4 & Intune)
     telemetry_path = safe_resolve_path(data_dir, "knowbe4_api_mock.json")
     with open(telemetry_path, "r", encoding="utf-8") as f:
         users = json.load(f)
 
-    findings = []
-
-    # 2. Evaluate workforce and endpoint compliance logic
+    # Evaluate workforce and endpoint compliance logic
     for user in users:
         anon_id = pseudonymize_id(user["employee_id"])
         dept = user["department"]
@@ -80,13 +80,47 @@ def run_audit():
                 "NIST_800_53": "IR-6, SC-28, AC-3",
                 "Finding": "Endpoint accessing highly sensitive 42 CFR Part 2 Substance Use Disorder records lacks full-disk encryption. Unencrypted loss constitutes a reportable HITECH breach triggering mandatory HHS/OCR notification within 60 days.",
                 "Remediation_POAM": "Isolate endpoint via Intune, trigger remote BitLocker escrow verification, and initiate Incident Response PII triage."
-            })    
+            })
 
+    # 2. Safely load Third-Party Risk Management (TPRM / BAA) telemetry data
+    tprm_path = safe_resolve_path(data_dir, "tprm_api_mock.json")
+    with open(tprm_path, "r", encoding="utf-8") as f:
+        vendors = json.load(f)
+
+    # Evaluate vendor TPRM and BAA compliance logic
+    for vendor in vendors:
+        vendor_id = vendor["vendor_id"]
+        vendor_name = vendor["vendor_name"]
+
+        # Check E: Missing Business Associate Agreement (BAA) for ePHI Vendor
+        if vendor["phi_access"] and not vendor["baa_signed"]:
+            findings.append({
+                "Asset_ID": vendor_id,
+                "Department": f"Vendor: {vendor_name}",
+                "Severity": "CRITICAL",
+                "HIPAA_Citation": "45 CFR § 164.502(e) & § 164.504(e)",
+                "NIST_800_53": "SA-9, AC-20",
+                "Finding": f"Third-party vendor '{vendor_name}' has active ePHI access but lacks an executed Business Associate Agreement (BAA).",
+                "Remediation_POAM": "Immediately suspend vendor API/data access until Legal executes formal BAA compliance contract."
+            })
+
+        # Check F: Uncertified Third-Party Vendor Security Posture (SOC 2 / HITRUST)
+        if vendor["phi_access"] and not vendor["soc2_hitrust_certified"]:
+            findings.append({
+                "Asset_ID": vendor_id,
+                "Department": f"Vendor: {vendor_name}",
+                "Severity": "HIGH",
+                "HIPAA_Citation": "45 CFR § 164.308(a)(1)(ii)(B)",
+                "NIST_800_53": "SA-9, RA-3",
+                "Finding": f"Vendor '{vendor_name}' processing ePHI lacks a valid annual SOC 2 Type II or HITRUST CSF certification (Assessment age: {vendor['days_since_assessment']} days).",
+                "Remediation_POAM": "Request updated third-party attestation report or initiate vendor security risk review."
+            })
 
     # 3. Output Sanitized CSV Risk Register (POA&M)
+    output_dir = repo_root / "output"
+    output_dir.mkdir(exist_ok=True)
     csv_path = safe_resolve_path(output_dir, "live_hipaa_risk_register.csv")
     csv_headers = ["Asset_ID", "Department", "Severity", "HIPAA_Citation", "NIST_800_53", "Finding", "Remediation_POAM"]
-
     with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(csv_headers)
@@ -94,7 +128,7 @@ def run_audit():
             sanitized_row = [sanitize_csv_cell(str(item[h])) for h in csv_headers]
             writer.writerow(sanitized_row)
 
-    # 4. Generate SHA-256 Integrity Hash for HIPAA 164.312(c)(1) Compliance
+    # 4. Generate SHA-256 Integrity Hash for HIPAA § 164.312(c)(1) Compliance
     file_hash = generate_file_sha256(csv_path)
 
     import matplotlib.pyplot as plt
@@ -109,24 +143,24 @@ def run_audit():
     ax1.set_title("Open Findings by Severity", fontweight="bold")
     ax1.set_ylabel("Count")
 
-    admin_count = sum(1 for f in findings if "164.308" in f["HIPAA_Citation"])
+    admin_count = sum(1 for f in findings if "164.308" in f["HIPAA_Citation"] or "164.502" in f["HIPAA_Citation"])
     tech_phys_count = len(findings) - admin_count
-    ax2.pie([admin_count, tech_phys_count], labels=["Admin Safeguards (§ 164.308)", "Tech/Physical (§ 164.310/312)"], 
+
+    ax2.pie([admin_count, tech_phys_count], labels=["Admin / TPRM Safeguards", "Tech / Physical Safeguards"], 
             autopct="%1.0f%%", colors=["#0275d8", "#5cb85c"], startangle=90)
     ax2.set_title("Findings by HIPAA Category", fontweight="bold")
-
     plt.tight_layout()
     chart_path = output_dir / "compliance_charts.png"
     plt.savefig(chart_path, dpi=300)
     plt.close()
-    
-   # 6. Generate CISO Executive Dashboard Markdown Report with Table and Charts
+
+    # 6. Generate CISO Executive Dashboard Markdown Report with Table and Charts
     md_path = safe_resolve_path(output_dir, "ciso_executive_dashboard.md")
     with open(md_path, "w", encoding="utf-8") as md_file:
         md_file.write(f"# BitByte CISO Executive Compliance Dashboard\n\n")
         md_file.write(f"**Audit Status:** Completed Successfully  \n")
         md_file.write(f"**Total Open Findings:** {len(findings)}  \n")
-        md_file.write(f"**Audit Artifact SHA-256 Digest (HIPAA 164.312(c)(1)):** `{file_hash}`\n\n")
+        md_file.write(f"**Audit Artifact SHA-256 Digest (HIPAA § 164.312(c)(1)):** `{file_hash}`\n\n")
         
         # Embed Visual Charts
         md_file.write("## Executive Visual Overview\n")
@@ -138,11 +172,11 @@ def run_audit():
         md_file.write("| :--- | :--- | :--- | :--- | :--- |\n")
         for item in findings:
             md_file.write(f"| **{item['Severity']}** | {item['HIPAA_Citation']} | `{item['NIST_800_53']}` | {item['Department']} | {item['Finding']} *Action: {item['Remediation_POAM']}* |\n")
-        
+
         md_file.write("\n## Detailed POA&M Breakdown\n\n")
         for idx, item in enumerate(findings, 1):
             md_file.write(f"### Finding {idx}: [{item['Severity']}] {item['HIPAA_Citation']}\n")
-            md_file.write(f"- **Asset:** `{item['Asset_ID']}` ({item['Department']})\n")
+            md_file.write(f"- **Asset / Vendor:** `{item['Asset_ID']}` ({item['Department']})\n")
             md_file.write(f"- **NIST 800-53 Control:** `{item['NIST_800_53']}`\n")
             md_file.write(f"- **Issue:** {item['Finding']}\n")
             md_file.write(f"- **Remediation Plan:** {item['Remediation_POAM']}\n\n")

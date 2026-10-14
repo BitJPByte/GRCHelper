@@ -1,0 +1,29 @@
+[
+  {
+    "vendor_id": "VEND-101",
+    "vendor_name": "CloudCare EHR Solutions",
+    "service_type": "Electronic Health Record Hosting",
+    "phi_access": true,
+    "baa_signed": true,
+    "soc2_hitrust_certified": true,
+    "days_since_assessment": 45
+  },
+  {
+    "vendor_id": "VEND-102",
+    "vendor_name": "Apex Medical Billing & Clearinghouse",
+    "service_type": "Revenue Cycle Management",
+    "phi_access": true,
+    "baa_signed": false,
+    "soc2_hitrust_certified": false,
+    "days_since_assessment": 180
+  },
+  {
+    "vendor_id": "VEND-103",
+    "vendor_name": "SecureVault Telehealth Stream",
+    "service_type": "Video Consultation Platform",
+    "phi_access": true,
+    "baa_signed": true,
+    "soc2_hitrust_certified": false,
+    "days_since_assessment": 310
+  }
+]
