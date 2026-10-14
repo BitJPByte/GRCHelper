@@ -175,7 +175,7 @@ When `continuous_compliance_auditor.py` executes, it transforms raw identity, en
 ### A. Executive Visual Dashboard (`output/compliance_charts.png`)
 The engine generates automated data visualizations summarizing risk posture for board-level and executive review:
 
-![Executive Compliance Charts](output/compliance_charts.png)
+![Executive Compliance Charts](docs/images/compliance_charts.png)
 
 ---
 
