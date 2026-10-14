@@ -83,8 +83,31 @@ def run_audit():
 
     # 4. Generate SHA-256 Integrity Hash for HIPAA 164.312(c)(1) Compliance
     file_hash = generate_file_sha256(csv_path)
+
+    import matplotlib.pyplot as plt
+
+    # 5. Generate Compliance Visual Charts
+    severities = [f["Severity"] for f in findings]
+    sev_counts = {sev: severities.count(sev) for sev in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]}
+    sev_counts = {k: v for k, v in sev_counts.items() if v > 0}
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+    ax1.bar(sev_counts.keys(), sev_counts.values(), color=['#d9534f', '#f0ad4e', '#5bc0de'])
+    ax1.set_title("Open Findings by Severity", fontweight="bold")
+    ax1.set_ylabel("Count")
+
+    admin_count = sum(1 for f in findings if "164.308" in f["HIPAA_Citation"])
+    tech_phys_count = len(findings) - admin_count
+    ax2.pie([admin_count, tech_phys_count], labels=["Admin Safeguards (§ 164.308)", "Tech/Physical (§ 164.310/312)"], 
+            autopct="%1.0f%%", colors=["#0275d8", "#5cb85c"], startangle=90)
+    ax2.set_title("Findings by HIPAA Category", fontweight="bold")
+
+    plt.tight_layout()
+    chart_path = output_dir / "compliance_charts.png"
+    plt.savefig(chart_path, dpi=300)
+    plt.close()
     
-   # 5. Generate CISO Executive Dashboard Markdown Report with Table and Charts
+   # 6. Generate CISO Executive Dashboard Markdown Report with Table and Charts
     md_path = safe_resolve_path(output_dir, "ciso_executive_dashboard.md")
     with open(md_path, "w", encoding="utf-8") as md_file:
         md_file.write(f"# BitByte CISO Executive Compliance Dashboard\n\n")
@@ -94,7 +117,7 @@ def run_audit():
         
         # Embed Visual Charts
         md_file.write("## Executive Visual Overview\n")
-        md_file.write("![Compliance Charts](./compliance_charts.png)\n\n")
+        md_file.write("![Compliance Charts](compliance_charts.png)\n\n")
 
         # Embed Executive Summary Table
         md_file.write("## Executive Findings Summary\n\n")
