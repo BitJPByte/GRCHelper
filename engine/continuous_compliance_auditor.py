@@ -70,6 +70,19 @@ def run_audit():
                 "Remediation_POAM": "Enforce Intune BitLocker compliance policy immediately and block M365 session until encrypted."
             })
 
+        # Check D: 42 CFR Part 2 (SUD Records) & HITECH Breach Triage
+        if user.get("part2_sud_access") and not user.get("intune_device_encrypted"):
+            findings.append({
+                "Asset_ID": anon_id,
+                "Department": dept,
+                "Severity": "CRITICAL",
+                "HIPAA_Citation": "42 CFR Part 2 & HITECH Act (45 CFR § 164.404)",
+                "NIST_800_53": "IR-6, SC-28, AC-3",
+                "Finding": "Endpoint accessing highly sensitive 42 CFR Part 2 Substance Use Disorder records lacks full-disk encryption. Unencrypted loss constitutes a reportable HITECH breach triggering mandatory HHS/OCR notification within 60 days.",
+                "Remediation_POAM": "Isolate endpoint via Intune, trigger remote BitLocker escrow verification, and initiate Incident Response PII triage."
+            })    
+
+
     # 3. Output Sanitized CSV Risk Register (POA&M)
     csv_path = safe_resolve_path(output_dir, "live_hipaa_risk_register.csv")
     csv_headers = ["Asset_ID", "Department", "Severity", "HIPAA_Citation", "NIST_800_53", "Finding", "Remediation_POAM"]
