@@ -1,7 +1,7 @@
 """
 continuous_compliance_auditor.py
-Core GRC automation engine mapping KnowBe4, Intune, and TPRM/BAA telemetry 
-to HIPAA Security Rule (45 CFR Part 164) and NIST SP 800-53 Rev. 5 controls.
+Core GRC automation engine dynamically mapping KnowBe4, Intune, and TPRM/BAA telemetry 
+against an external NIST SP 800-66 Rev. 2 / HIPAA / NIST SP 800-53 Rev. 5 Crosswalk.
 """
 
 import json
@@ -15,20 +15,40 @@ from security_utils import (
     generate_file_sha256
 )
 
+def build_finding(asset_id: str, department: str, severity: str, rule_meta: dict, issue_detail: str) -> dict:
+    """Helper that binds dynamic telemetry findings to the official regulatory crosswalk."""
+    return {
+        "Rule_ID": rule_meta["rule_id"],
+        "Asset_ID": asset_id,
+        "Department": department,
+        "Severity": severity,
+        "Safeguard_Category": rule_meta["safeguard_category"],
+        "HIPAA_Citation": rule_meta["hipaa_citation"],
+        "NIST_800_53": rule_meta["nist_800_53_controls"],
+        "NIST_CSF_2_0": rule_meta["nist_csf_2_0"],
+        "Finding": issue_detail,
+        "Remediation_POAM": rule_meta["default_remediation"]
+    }
+
 def run_audit():
     repo_root = Path(__file__).resolve().parent.parent
     data_dir = repo_root / "data"
     output_dir = repo_root / "output"
     output_dir.mkdir(exist_ok=True)
 
+    # 1. Dynamically load the NIST SP 800-66 Rev. 2 / HIPAA Crosswalk Catalog
+    crosswalk_path = safe_resolve_path(data_dir, "nist_hipaa_crosswalk.json")
+    with open(crosswalk_path, "r", encoding="utf-8") as f:
+        crosswalk = json.load(f)
+
     findings = []
 
-    # 1. Safely load workforce telemetry data (KnowBe4 & Intune)
+    # 2. Safely load workforce telemetry data (KnowBe4 & Intune)
     telemetry_path = safe_resolve_path(data_dir, "knowbe4_api_mock.json")
     with open(telemetry_path, "r", encoding="utf-8") as f:
         users = json.load(f)
 
-    # Evaluate workforce and endpoint compliance logic
+    # Evaluate workforce and endpoint compliance logic using Crosswalk lookups
     for user in users:
         anon_id = pseudonymize_id(user["employee_id"])
         dept = user["department"]
@@ -36,91 +56,58 @@ def run_audit():
         # Check A: KnowBe4 Continuous Phishing Risk -> Identity Escalation
         if user["ephi_access"] and user["phish_failures_90d"] >= 2:
             if not user["entra_strict_mfa_enforced"]:
-                findings.append({
-                    "Asset_ID": anon_id,
-                    "Department": dept,
-                    "Severity": "HIGH" if user["part2_sud_access"] else "MEDIUM",
-                    "HIPAA_Citation": "45 CFR § 164.308(a)(5)(ii)(B)",
-                    "NIST_800_53": "AT-2, IA-2(1), SI-3",
-                    "Finding": f"Repeat KnowBe4 phish clicker ({user['phish_failures_90d']}x in 90d) with ePHI/Part 2 access lacks Strict Conditional Access MFA.",
-                    "Remediation_POAM": "Enroll in KnowBe4 remedial training & enforce Entra ID High-Risk Clinical MFA policy."
-                })
+                rule = crosswalk["CHECK_A_PHISHING_MFA"]
+                sev = "HIGH" if user["part2_sud_access"] else "MEDIUM"
+                detail = f"Repeat KnowBe4 phish clicker ({user['phish_failures_90d']}x in 90d) with ePHI/Part 2 access lacks Strict Conditional Access MFA."
+                findings.append(build_finding(anon_id, dept, sev, rule, detail))
 
         # Check B: Delinquent Annual Training Gatekeeper
         if user["ephi_access"] and user["annual_hipaa_training_status"] == "Overdue" and user["days_overdue"] > 14:
-            findings.append({
-                "Asset_ID": anon_id,
-                "Department": dept,
-                "Severity": "MEDIUM",
-                "HIPAA_Citation": "45 CFR § 164.308(a)(5)(i)",
-                "NIST_800_53": "AT-2, AC-2",
-                "Finding": f"Mandatory workforce HIPAA/HITECH training is {user['days_overdue']} days overdue while retaining active ePHI access.",
-                "Remediation_POAM": "Trigger manager alert via KnowBe4 API; suspend EHR group access if past 30 days."
-            })
+            rule = crosswalk["CHECK_B_OVERDUE_TRAINING"]
+            detail = f"Mandatory workforce HIPAA/HITECH training is {user['days_overdue']} days overdue while retaining active ePHI access."
+            findings.append(build_finding(anon_id, dept, "MEDIUM", rule, detail))
 
         # Check C: Intune MDM Encryption & HITECH Safe Harbor Check
         if user["ephi_access"] and not user["intune_device_encrypted"]:
-            findings.append({
-                "Asset_ID": anon_id,
-                "Department": dept,
-                "Severity": "CRITICAL",
-                "HIPAA_Citation": "45 CFR § 164.312(a)(2)(iv) & § 164.310(d)(1)",
-                "NIST_800_53": "SC-28, MP-4",
-                "Finding": "Endpoint accessing ePHI is unencrypted in Intune MDM. Voids HITECH Breach Safe Harbor if lost/stolen.",
-                "Remediation_POAM": "Enforce Intune BitLocker compliance policy immediately and block M365 session until encrypted."
-            })
+            rule = crosswalk["CHECK_C_ENDPOINT_ENCRYPTION"]
+            detail = "Endpoint accessing ePHI is unencrypted in Intune MDM. Voids HITECH Breach Safe Harbor if lost/stolen."
+            findings.append(build_finding(anon_id, dept, "CRITICAL", rule, detail))
 
         # Check D: 42 CFR Part 2 (SUD Records) & HITECH Breach Triage
         if user.get("part2_sud_access") and not user.get("intune_device_encrypted"):
-            findings.append({
-                "Asset_ID": anon_id,
-                "Department": dept,
-                "Severity": "CRITICAL",
-                "HIPAA_Citation": "42 CFR Part 2 & HITECH Act (45 CFR § 164.404)",
-                "NIST_800_53": "IR-6, SC-28, AC-3",
-                "Finding": "Endpoint accessing highly sensitive 42 CFR Part 2 Substance Use Disorder records lacks full-disk encryption. Unencrypted loss constitutes a reportable HITECH breach triggering mandatory HHS/OCR notification within 60 days.",
-                "Remediation_POAM": "Isolate endpoint via Intune, trigger remote BitLocker escrow verification, and initiate Incident Response PII triage."
-            })
+            rule = crosswalk["CHECK_D_PART2_SUD_BREACH_RISK"]
+            detail = "Endpoint accessing highly sensitive 42 CFR Part 2 Substance Use Disorder records lacks full-disk encryption. Unencrypted loss constitutes a reportable HITECH breach triggering mandatory HHS/OCR notification within 60 days."
+            findings.append(build_finding(anon_id, dept, "CRITICAL", rule, detail))
 
-    # 2. Safely load Third-Party Risk Management (TPRM / BAA) telemetry data
+    # 3. Safely load Third-Party Risk Management (TPRM / BAA) telemetry data
     tprm_path = safe_resolve_path(data_dir, "tprm_api_mock.json")
     with open(tprm_path, "r", encoding="utf-8") as f:
         vendors = json.load(f)
 
-    # Evaluate vendor TPRM and BAA compliance logic
+    # Evaluate vendor TPRM and BAA compliance logic using Crosswalk lookups
     for vendor in vendors:
         vendor_id = vendor["vendor_id"]
         vendor_name = vendor["vendor_name"]
+        dept_label = f"Vendor: {vendor_name}"
 
         # Check E: Missing Business Associate Agreement (BAA) for ePHI Vendor
         if vendor["phi_access"] and not vendor["baa_signed"]:
-            findings.append({
-                "Asset_ID": vendor_id,
-                "Department": f"Vendor: {vendor_name}",
-                "Severity": "CRITICAL",
-                "HIPAA_Citation": "45 CFR § 164.502(e) & § 164.504(e)",
-                "NIST_800_53": "SA-9, AC-20",
-                "Finding": f"Third-party vendor '{vendor_name}' has active ePHI access but lacks an executed Business Associate Agreement (BAA).",
-                "Remediation_POAM": "Immediately suspend vendor API/data access until Legal executes formal BAA compliance contract."
-            })
+            rule = crosswalk["CHECK_E_MISSING_BAA"]
+            detail = f"Third-party vendor '{vendor_name}' has active ePHI access but lacks an executed Business Associate Agreement (BAA)."
+            findings.append(build_finding(vendor_id, dept_label, "CRITICAL", rule, detail))
 
         # Check F: Uncertified Third-Party Vendor Security Posture (SOC 2 / HITRUST)
         if vendor["phi_access"] and not vendor["soc2_hitrust_certified"]:
-            findings.append({
-                "Asset_ID": vendor_id,
-                "Department": f"Vendor: {vendor_name}",
-                "Severity": "HIGH",
-                "HIPAA_Citation": "45 CFR § 164.308(a)(1)(ii)(B)",
-                "NIST_800_53": "SA-9, RA-3",
-                "Finding": f"Vendor '{vendor_name}' processing ePHI lacks a valid annual SOC 2 Type II or HITRUST CSF certification (Assessment age: {vendor['days_since_assessment']} days).",
-                "Remediation_POAM": "Request updated third-party attestation report or initiate vendor security risk review."
-            })
+            rule = crosswalk["CHECK_F_VENDOR_ASSURANCE"]
+            detail = f"Vendor '{vendor_name}' processing ePHI lacks a valid annual SOC 2 Type II or HITRUST CSF certification (Assessment age: {vendor['days_since_assessment']} days)."
+            findings.append(build_finding(vendor_id, dept_label, "HIGH", rule, detail))
 
-    # 3. Output Sanitized CSV Risk Register (POA&M)
-    output_dir = repo_root / "output"
-    output_dir.mkdir(exist_ok=True)
+    # 4. Output Sanitized CSV Risk Register (POA&M)
     csv_path = safe_resolve_path(output_dir, "live_hipaa_risk_register.csv")
-    csv_headers = ["Asset_ID", "Department", "Severity", "HIPAA_Citation", "NIST_800_53", "Finding", "Remediation_POAM"]
+    csv_headers = [
+        "Rule_ID", "Asset_ID", "Department", "Severity", "Safeguard_Category",
+        "HIPAA_Citation", "NIST_800_53", "NIST_CSF_2_0", "Finding", "Remediation_POAM"
+    ]
     with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(csv_headers)
@@ -128,12 +115,12 @@ def run_audit():
             sanitized_row = [sanitize_csv_cell(str(item[h])) for h in csv_headers]
             writer.writerow(sanitized_row)
 
-    # 4. Generate SHA-256 Integrity Hash for HIPAA § 164.312(c)(1) Compliance
+    # 5. Generate SHA-256 Integrity Hash for HIPAA § 164.312(c)(1) Compliance
     file_hash = generate_file_sha256(csv_path)
 
     import matplotlib.pyplot as plt
 
-    # 5. Generate Compliance Visual Charts
+    # 6. Generate Compliance Visual Charts
     severities = [f["Severity"] for f in findings]
     sev_counts = {sev: severities.count(sev) for sev in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]}
     sev_counts = {k: v for k, v in sev_counts.items() if v > 0}
@@ -143,7 +130,7 @@ def run_audit():
     ax1.set_title("Open Findings by Severity", fontweight="bold")
     ax1.set_ylabel("Count")
 
-    admin_count = sum(1 for f in findings if "164.308" in f["HIPAA_Citation"] or "164.502" in f["HIPAA_Citation"])
+    admin_count = sum(1 for f in findings if "Administrative" in f["Safeguard_Category"])
     tech_phys_count = len(findings) - admin_count
 
     ax2.pie([admin_count, tech_phys_count], labels=["Admin / TPRM Safeguards", "Tech / Physical Safeguards"], 
@@ -154,7 +141,7 @@ def run_audit():
     plt.savefig(chart_path, dpi=300)
     plt.close()
 
-    # 6. Generate CISO Executive Dashboard Markdown Report with Table and Charts
+    # 7. Generate CISO Executive Dashboard Markdown Report with Table and Charts
     md_path = safe_resolve_path(output_dir, "ciso_executive_dashboard.md")
     with open(md_path, "w", encoding="utf-8") as md_file:
         md_file.write(f"# BitByte CISO Executive Compliance Dashboard\n\n")
@@ -168,16 +155,17 @@ def run_audit():
 
         # Embed Executive Summary Table
         md_file.write("## Executive Findings Summary\n\n")
-        md_file.write("| Severity | HIPAA Citation | NIST 800-53 Control | Department / Asset | Core Risk & Remediation Summary |\n")
-        md_file.write("| :--- | :--- | :--- | :--- | :--- |\n")
+        md_file.write("| Severity | Rule ID | HIPAA Citation | NIST 800-53 | NIST CSF 2.0 | Department / Asset | Core Risk & Remediation Summary |\n")
+        md_file.write("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n")
         for item in findings:
-            md_file.write(f"| **{item['Severity']}** | {item['HIPAA_Citation']} | `{item['NIST_800_53']}` | {item['Department']} | {item['Finding']} *Action: {item['Remediation_POAM']}* |\n")
+            md_file.write(f"| **{item['Severity']}** | `{item['Rule_ID']}` | {item['HIPAA_Citation']} | `{item['NIST_800_53']}` | `{item['NIST_CSF_2_0']}` | {item['Department']} | {item['Finding']} *Action: {item['Remediation_POAM']}* |\n")
 
         md_file.write("\n## Detailed POA&M Breakdown\n\n")
         for idx, item in enumerate(findings, 1):
-            md_file.write(f"### Finding {idx}: [{item['Severity']}] {item['HIPAA_Citation']}\n")
+            md_file.write(f"### Finding {idx}: [{item['Severity']}] {item['HIPAA_Citation']} ({item['Rule_ID']})\n")
             md_file.write(f"- **Asset / Vendor:** `{item['Asset_ID']}` ({item['Department']})\n")
-            md_file.write(f"- **NIST 800-53 Control:** `{item['NIST_800_53']}`\n")
+            md_file.write(f"- **Safeguard Category:** {item['Safeguard_Category']}\n")
+            md_file.write(f"- **NIST 800-53 Rev. 5 Control:** `{item['NIST_800_53']}` | **NIST CSF 2.0:** `{item['NIST_CSF_2_0']}`\n")
             md_file.write(f"- **Issue:** {item['Finding']}\n")
             md_file.write(f"- **Remediation Plan:** {item['Remediation_POAM']}\n\n")
 

@@ -1,0 +1,56 @@
+{
+  "CHECK_A_PHISHING_MFA": {
+    "rule_id": "CHECK_A_PHISHING_MFA",
+    "rule_name": "High-Risk Clinical Identity & Phishing Escalation",
+    "safeguard_category": "Administrative & Technical Safeguard",
+    "hipaa_citation": "45 CFR \u00a7 164.308(a)(5)(ii)(B) & \u00a7 164.312(d)",
+    "nist_800_53_controls": "AT-2, IA-2(1), SI-3",
+    "nist_csf_2_0": "PR.AT-01, PR.AA-01",
+    "default_remediation": "Enroll in KnowBe4 remedial training & enforce Entra ID High-Risk Clinical Phishing-Resistant MFA policy."
+  },
+  "CHECK_B_OVERDUE_TRAINING": {
+    "rule_id": "CHECK_B_OVERDUE_TRAINING",
+    "rule_name": "Delinquent Annual HIPAA/HITECH Workforce Training Gatekeeper",
+    "safeguard_category": "Administrative Safeguard",
+    "hipaa_citation": "45 CFR \u00a7 164.308(a)(5)(i)",
+    "nist_800_53_controls": "AT-2, AC-2",
+    "nist_csf_2_0": "PR.AT-01, PR.AA-05",
+    "default_remediation": "Trigger manager escalation via KnowBe4 API; suspend EHR/ePHI security group membership if past 30 days."
+  },
+  "CHECK_C_ENDPOINT_ENCRYPTION": {
+    "rule_id": "CHECK_C_ENDPOINT_ENCRYPTION",
+    "rule_name": "Intune MDM Full-Disk Encryption & HITECH Safe Harbor Verification",
+    "safeguard_category": "Technical & Physical Safeguard",
+    "hipaa_citation": "45 CFR \u00a7 164.312(a)(2)(iv) & \u00a7 164.310(d)(1)",
+    "nist_800_53_controls": "SC-28, MP-4",
+    "nist_csf_2_0": "PR.DS-01, PR.IR-01",
+    "default_remediation": "Enforce Intune BitLocker XTS-AES 256 compliance policy immediately and block M365/EHR session via Conditional Access until encrypted."
+  },
+  "CHECK_D_PART2_SUD_BREACH_RISK": {
+    "rule_id": "CHECK_D_PART2_SUD_BREACH_RISK",
+    "rule_name": "42 CFR Part 2 Substance Use Disorder (SUD) Unencrypted Endpoint Exposure",
+    "safeguard_category": "Breach Triage & Technical Safeguard",
+    "hipaa_citation": "42 CFR Part 2 & HITECH Act (45 CFR \u00a7 164.404)",
+    "nist_800_53_controls": "IR-6, SC-28, AC-3",
+    "nist_csf_2_0": "RS.MA-01, PR.DS-01",
+    "default_remediation": "Isolate endpoint via Intune/Defender XDR, trigger remote BitLocker escrow verification, and initiate 4-Factor LoProCo Incident Response triage."
+  },
+  "CHECK_E_MISSING_BAA": {
+    "rule_id": "CHECK_E_MISSING_BAA",
+    "rule_name": "Third-Party ePHI Vendor Missing Executed Business Associate Agreement (BAA)",
+    "safeguard_category": "Administrative / TPRM Safeguard",
+    "hipaa_citation": "45 CFR \u00a7 164.502(e) & \u00a7 164.504(e)",
+    "nist_800_53_controls": "SA-9, AC-20, SR-3",
+    "nist_csf_2_0": "GV.SC-06, GV.SC-07",
+    "default_remediation": "Immediately suspend vendor API/data integration until Legal executes a formal HIPAA/Part 2 Business Associate Agreement."
+  },
+  "CHECK_F_VENDOR_ASSURANCE": {
+    "rule_id": "CHECK_F_VENDOR_ASSURANCE",
+    "rule_name": "Uncertified Third-Party Vendor Security Posture (Missing SOC 2 / HITRUST)",
+    "safeguard_category": "Administrative / TPRM Safeguard",
+    "hipaa_citation": "45 CFR \u00a7 164.308(a)(1)(ii)(B) & \u00a7 164.308(b)(1)",
+    "nist_800_53_controls": "SA-9, RA-3, CA-2",
+    "nist_csf_2_0": "GV.SC-07, ID.RA-01",
+    "default_remediation": "Request updated SOC 2 Type II or HITRUST CSF attestation report or initiate formal TPRM security exception review."
+  }
+}
