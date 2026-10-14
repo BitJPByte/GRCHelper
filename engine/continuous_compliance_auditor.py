@@ -84,14 +84,26 @@ def run_audit():
     # 4. Generate SHA-256 Integrity Hash for HIPAA 164.312(c)(1) Compliance
     file_hash = generate_file_sha256(csv_path)
     
-    # 5. Generate CISO Executive Dashboard Markdown Report
+   # 5. Generate CISO Executive Dashboard Markdown Report with Table and Charts
     md_path = safe_resolve_path(output_dir, "ciso_executive_dashboard.md")
     with open(md_path, "w", encoding="utf-8") as md_file:
         md_file.write(f"# BitByte CISO Executive Compliance Dashboard\n\n")
         md_file.write(f"**Audit Status:** Completed Successfully  \n")
         md_file.write(f"**Total Open Findings:** {len(findings)}  \n")
         md_file.write(f"**Audit Artifact SHA-256 Digest (HIPAA 164.312(c)(1)):** `{file_hash}`\n\n")
-        md_file.write("## Active Risk Items & POA&M\n\n")
+        
+        # Embed Visual Charts
+        md_file.write("## Executive Visual Overview\n")
+        md_file.write("![Executive compliance dashboard with a bar chart and trend line showing HIPAA and NIST risk findings by severity, open count, and remediation progress. The primary subjects are the charts and summary indicators on a clean business dashboard layout. The environment is a formal compliance reporting screen with labels for status, findings, and action priorities. Text in the image includes headings and values for compliance overview, severity breakdown, and open findings. The tone is professional, alert, and action-oriented.](./compliance_charts.png)\n\n")
+
+        # Embed Executive Summary Table
+        md_file.write("## Executive Findings Summary\n\n")
+        md_file.write("| Severity | HIPAA Citation | NIST 800-53 Control | Department / Asset | Core Risk & Remediation Summary |\n")
+        md_file.write("| :--- | :--- | :--- | :--- | :--- |\n")
+        for item in findings:
+            md_file.write(f"| **{item['Severity']}** | {item['HIPAA_Citation']} | `{item['NIST_800_53']}` | {item['Department']} | {item['Finding']} *Action: {item['Remediation_POAM']}* |\n")
+        
+        md_file.write("\n## Detailed POA&M Breakdown\n\n")
         for idx, item in enumerate(findings, 1):
             md_file.write(f"### Finding {idx}: [{item['Severity']}] {item['HIPAA_Citation']}\n")
             md_file.write(f"- **Asset:** `{item['Asset_ID']}` ({item['Department']})\n")
