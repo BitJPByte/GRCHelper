@@ -30,6 +30,15 @@ def validate_api_url(url: str) -> str:
     return url
 
 
+def safe_resolve_path(base_dir: Path, target_rel_path: str) -> Path:
+    """Prevents Path Traversal (CWE-22) by ensuring target file stays strictly inside base_dir."""
+    base_resolved = base_dir.resolve()
+    target_resolved = (base_resolved / target_rel_path).resolve()
+    if not str(target_resolved).startswith(str(base_resolved)):
+        raise PermissionError(f"Security Violation: Path traversal attempt blocked for '{target_rel_path}'.")
+    return target_resolved
+
+
 def pseudonymize_id(raw_identifier: str) -> str:
     """
     Enforces HIPAA Minimum Necessary (45 CFR 164.502(b)) by replacing raw PII/names
