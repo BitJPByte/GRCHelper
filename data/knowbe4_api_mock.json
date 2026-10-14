@@ -1,0 +1,41 @@
+[
+  {
+    "employee_id": "BitBtyte-1042",
+    "department": "Clinical Admissions (SUD)",
+    "ephi_access": true,
+    "part2_sud_access": true,
+    "knowbe4_phish_prone_pct": 45.0,
+    "phish_failures_90d": 3,
+    "annual_hipaa_training_status": "Completed",
+    "days_overdue": 0,
+    "intune_device_encrypted": true,
+    "crowdstrike_sensor_active": true,
+    "entra_strict_mfa_enforced": false
+  },
+  {
+    "employee_id": "BitBtyte-2089",
+    "department": "Patient Billing",
+    "ephi_access": true,
+    "part2_sud_access": false,
+    "knowbe4_phish_prone_pct": 15.0,
+    "phish_failures_90d": 0,
+    "annual_hipaa_training_status": "Overdue",
+    "days_overdue": 21,
+    "intune_device_encrypted": false,
+    "crowdstrike_sensor_active": true,
+    "entra_strict_mfa_enforced": true
+  },
+  {
+    "employee_id": "BitBtyte-3110",
+    "department": "Inpatient Nursing",
+    "ephi_access": true,
+    "part2_sud_access": true,
+    "knowbe4_phish_prone_pct": 5.0,
+    "phish_failures_90d": 0,
+    "annual_hipaa_training_status": "Completed",
+    "days_overdue": 0,
+    "intune_device_encrypted": true,
+    "crowdstrike_sensor_active": true,
+    "entra_strict_mfa_enforced": true
+  }
+]
