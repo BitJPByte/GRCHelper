@@ -1,0 +1,25 @@
+# === SECRETS & ENVIRONMENT CONFIGS (NIST IA-5) ===
+# Blocks local environment variables, API keys, and private credentials from being committed
+.env
+.env.local
+*.pem
+*.key
+*.secret
+
+# === PYTHON & IDE ARTIFACTS ===
+# Blocks local compiled bytecode and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.idea/
+.VSCode/
+.DS_Store
+
+# === GRC AUDIT OUTPUTS & DATA (Data Minimization) ===
+# Blocks raw generated compliance reports, risk registers, and local test payloads
+# from leaking into public Git history
+output/
+*.log
