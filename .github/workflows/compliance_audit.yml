@@ -1,0 +1,64 @@
+name: Continuous HIPAA & NIST Compliance Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    # Runs automated daily compliance & breach readiness audit at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  continuous-compliance-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12 Runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Security Control Unit Tests (CWE-22, CWE-1236, HMAC-SHA256)
+        run: |
+          python -m unittest discover -s tests -v
+
+      - name: Compile NIST SP 800-66 Rev. 2 / HIPAA Crosswalk Catalog
+        run: |
+          python scripts/build_crosswalk_from_nist.py
+
+      - name: Execute Continuous Compliance & BAA Auditor
+        env:
+          GRC_AUDIT_SALT: ${{ secrets.GRC_AUDIT_SALT || 'ci-ephemeral-audit-salt' }}
+        run: |
+          python engine/continuous_compliance_auditor.py
+
+      - name: Execute HITECH 4-Factor LoProCo Breach Triage Engine
+        env:
+          GRC_AUDIT_SALT: ${{ secrets.GRC_AUDIT_SALT || 'ci-ephemeral-audit-salt' }}
+        run: |
+          python engine/hitech_breach_triage.py
+
+      - name: Upload Tamper-Evident Audit Deliverables
+        uses: actions/upload-artifact@v4
+        with:
+          name: hipaa-compliance-audit-artifacts
+          path: |
+            output/live_hipaa_risk_register.csv
+            output/ciso_executive_dashboard.md
+            output/hitech_loproco_triage_report.md
+            output/compliance_charts.png
+          retention-days: 30
